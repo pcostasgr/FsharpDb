@@ -88,3 +88,14 @@ type MrpController(context: MRPContext) =
                     let rowsAffected = context.SaveChanges()
                     return this.Ok(String.Format("Position created successfully with {0} rows affected", rowsAffected)) :> IActionResult
         }
+
+    [<HttpPost("CreateProduct")>]
+    member this.CreateProduct([<FromBody>] product: Product) =
+        task {
+            if String.IsNullOrWhiteSpace(product.ProductName) then
+                return this.BadRequest("Product Name cannot be empty") :> IActionResult
+            else
+                context.Products.Add(product) |> ignore
+                let rowsAffected = context.SaveChanges()
+                return this.Ok(String.Format("Product created successfully with {0} rows affected", rowsAffected)) :> IActionResult
+        }

@@ -17,6 +17,10 @@ type MRPContext(options: DbContextOptions<MRPContext>) =
     val mutable stages: DbSet<Stage>
     member this.Stages with get() = this.stages and set v = this.stages <- v
 
+    [<DefaultValue>]
+    val mutable products: DbSet<Product>
+    member this.Products with get() = this.products and set v = this.products <- v
+
     member this.GetDbContext() = this :> DbContext
 
     override _.OnModelCreating(modelBuilder: ModelBuilder) =
