@@ -30,36 +30,34 @@ type MrpController(context: MRPContext) =
         this.Ok("Hello World")
 
     [<HttpPost("CreateStage")>]
-    member this.CreateStages() =
-        
-        let newStage = Stage("Initial Stage", "STG001")
-    
-        // Add the new stage to the context
-        context.Stages.Add(newStage) |> ignore
-    //
-        // Save changes to the database
-        let rowsAffected = context.SaveChanges() |> ignore
-
-
-        this.Ok(String.Format("NewStage{0}", rowsAffected))
+    member this.CreateStages([<FromBody>] payload: {| StageName: string |}) =
+        task {
+            if String.IsNullOrWhiteSpace(payload.StageName) then
+                return this.BadRequest("Stage name cannot be empty") :> IActionResult
+            else
+                let newStage = Stage(payload.StageName, Guid.NewGuid().ToString()) // Generate a unique StageCode
+                // Add the new stage to the context
+                context.Stages.Add(newStage) |> ignore
+                // Save changes to the database
+                let rowsAffected = context.SaveChanges()
+                return this.Ok(String.Format("New Stage created with {0} rows affected", rowsAffected))
+        }
 
     [<HttpPost("CreateChildStage")>]
-    member this.CreateChildStages() =
+    member this.CreateChildStages([<FromBody>] payload: {| StageDescr: string; ParentStageId: int64 |}) =
         task {
-            let! parentStage = context.Stages.FirstOrDefaultAsync(fun s -> s.StageCode = "STG001")
+            let! parentStage = context.Stages.FirstOrDefaultAsync(fun s -> s.StageId = payload.ParentStageId)
         
             if isNull parentStage then
-                return this.Ok(String.Format("Parent Stage Not Found"))
+                return this.Ok("Parent Stage Not Found")
             else
-                let newStage = Stage("Second Stage", "STG002")
+                let newStage = Stage(payload.StageDescr, Guid.NewGuid().ToString()) // Generate a unique StageCode
                 newStage.ParentStageId <- parentStage.StageId
                 // Add the new stage to the context
                 context.Stages.Add(newStage) |> ignore
-                //
                 // Save changes to the database
                 let rowsAffected = context.SaveChanges()
-                return this.Ok(String.Format("Child Stage{0}", rowsAffected))
-            
+                return this.Ok(String.Format("Child Stage created with {0} rows affected", rowsAffected))
         }
 
     [<HttpGet("GetStage/{stageId}")>]
@@ -78,11 +76,15 @@ type MrpController(context: MRPContext) =
     (*λ curl -X POST http://localhost:5290/api/Mrp/CreatePosition -H "Content-Type: application/json" -d "{\"positionCode\": \"P001\", \"positionDescr\": \"Sample Position\", \"stageId\": 1}"*)
     [<HttpPost("CreatePosition")>]
     member this.CreatePosition([<FromBody>] position: Position) =
-        Console.WriteLine(position)
-
-        if position.PositionDescr |> String.IsNullOrWhiteSpace || position.PositionCode |> String.IsNullOrWhiteSpace then
-            this.Ok("Position Description or Code cannot be empty")
-        else
-            context.Positions.Add(position) |> ignore
-            context.SaveChanges() |> ignore
-            this.Ok("Position created successfully")
+        task {
+            if String.IsNullOrWhiteSpace(position.PositionDescr) || String.IsNullOrWhiteSpace(position.PositionCode) then
+                return this.BadRequest("Position Description or Code cannot be empty") :> IActionResult
+            else
+                let! stage = context.Stages.FirstOrDefaultAsync(fun s -> s.StageId = position.StageId)
+                if isNull stage then
+                    return this.BadRequest("Invalid StageId") :> IActionResult
+                else
+                    context.Positions.Add(position) |> ignore
+                    let rowsAffected = context.SaveChanges()
+                    return this.Ok(String.Format("Position created successfully with {0} rows affected", rowsAffected)) :> IActionResult
+        }
