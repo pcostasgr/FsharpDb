@@ -58,7 +58,7 @@ type MrpController(context: MRPContext) =
             let! parentStage = context.Stages.FirstOrDefaultAsync(fun s -> s.StageId = payload.ParentStageId)
 
             if isNull parentStage then
-                return this.Ok("Parent Stage Not Found")
+                return this.BadRequest("Parent Stage Not Found") :> IActionResult
             else
                 let newStage = Stage(payload.StageDescr, Guid.NewGuid().ToString()) // Generate a unique StageCode
                 newStage.ParentStageId <- parentStage.StageId
