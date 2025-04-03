@@ -51,3 +51,13 @@ type Mrp = {
     Positions:  List<Position> 
     Stages: List<Stage> 
 }
+
+type Product =
+    {
+        [<Key>]
+        ProductId: int
+
+        [<Required>]
+        [<MaxLength(100)>]
+        ProductName: string
+    }
