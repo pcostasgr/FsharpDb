@@ -11,26 +11,25 @@ open EntityFrameworkCore.FSharp.Extensions
 
 [<CLIMutable>]
 [<Table("Positions")>]
-type Position = {
-    [<Key>]
-    [<DatabaseGenerated(DatabaseGeneratedOption.Identity)>]
-    PosId: int
+type Position =
+    { [<Key>]
+      [<DatabaseGenerated(DatabaseGeneratedOption.Identity)>]
+      PosId: int
 
-    [<StringLength(10)>]
-    PositionCode: string
+      [<StringLength(10)>]
+      PositionCode: string
 
-    [<StringLength(50)>]
-    PositionDescr: string
-    StageId: int64  
-}
+      [<StringLength(50)>]
+      PositionDescr: string
+      StageId: int64 }
 
 
 [<Table("Stages")>]
 [<AllowNullLiteral>]
-type Stage( stageDescr: string,stageCode:string ) =
+type Stage(stageDescr: string, stageCode: string) =
     [<Key>]
-     [<DatabaseGenerated(DatabaseGeneratedOption.Identity)>] 
-    member val StageId:Int64=0 with get, set
+    [<DatabaseGenerated(DatabaseGeneratedOption.Identity)>]
+    member val StageId: Int64 = 0 with get, set
 
     [<StringLength(50)>]
     member val StageDescr = stageDescr with get, set
@@ -39,7 +38,7 @@ type Stage( stageDescr: string,stageCode:string ) =
     member val StageCode = stageCode with get, set
 
     [<ForeignKey("ParentStage")>]
-    member val ParentStageId: Nullable<Int64> =  Nullable<Int64>() with get, set
+    member val ParentStageId: Nullable<Int64> = Nullable<Int64>() with get, set
 
 
     member val Positions: List<Position> = List<Position>() with get, set
@@ -47,18 +46,15 @@ type Stage( stageDescr: string,stageCode:string ) =
     member val ChildStages: List<Stage> = List<Stage>() with get, set
 
 [<NotMapped>]
-type Mrp = {
-    Positions:  List<Position> 
-    Stages: List<Stage> 
-}
+type Mrp =
+    { Positions: List<Position>
+      Stages: List<Stage> }
 
 type Product =
-    {
-        [<Key>]
-        [<DatabaseGenerated(DatabaseGeneratedOption.Identity)>] // Set ProductId as an identity column
-        ProductId: int64
+    { [<Key>]
+      [<DatabaseGenerated(DatabaseGeneratedOption.Identity)>] // Set ProductId as an identity column
+      ProductId: int64
 
-        [<Required>]
-        [<MaxLength(100)>]
-        ProductName: string
-    }
+      [<Required>]
+      [<MaxLength(100)>]
+      ProductName: string }

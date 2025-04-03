@@ -17,17 +17,22 @@ type MrpController(context: MRPContext) =
     member _.Get() =
         task {
             let! positions = context.Positions.ToListAsync()
-            let! stages = context.Stages
-                            .Include(fun s -> s.Positions)
-                            .Include(fun s -> s.ChildStages)
-                            .ToListAsync()
-            let mrp = { Positions = positions; Stages = stages }
+
+            let! stages =
+                context.Stages
+                    .Include(fun s -> s.Positions)
+                    .Include(fun s -> s.ChildStages)
+                    .ToListAsync()
+
+            let mrp =
+                { Positions = positions
+                  Stages = stages }
+
             return ActionResult<Mrp>(mrp)
         }
-    
+
     [<HttpGet("GetText")>]
-    member this.GetText() =
-        this.Ok("Hello World")
+    member this.GetText() = this.Ok("Hello World")
 
     [<HttpPost("CreateStage")>]
     member this.CreateStages([<FromBody>] payload: {| StageName: string |}) =
@@ -44,10 +49,14 @@ type MrpController(context: MRPContext) =
         }
 
     [<HttpPost("CreateChildStage")>]
-    member this.CreateChildStages([<FromBody>] payload: {| StageDescr: string; ParentStageId: int64 |}) =
+    member this.CreateChildStages
+        ([<FromBody>] payload:
+            {| StageDescr: string
+               ParentStageId: int64 |})
+        =
         task {
             let! parentStage = context.Stages.FirstOrDefaultAsync(fun s -> s.StageId = payload.ParentStageId)
-        
+
             if isNull parentStage then
                 return this.Ok("Parent Stage Not Found")
             else
@@ -63,10 +72,12 @@ type MrpController(context: MRPContext) =
     [<HttpGet("GetStage/{stageId}")>]
     member this.GetStageById(stageId: int64) =
         task {
-            let! stage = context.Stages
-                            .Include(fun s -> s.ChildStages)  // Load child stages
-                            .Include(fun s -> s.Positions)    // Load positions
-                            .FirstOrDefaultAsync(fun s -> s.StageId = stageId)
+            let! stage =
+                context.Stages
+                    .Include(fun s -> s.ChildStages) // Load child stages
+                    .Include(fun s -> s.Positions) // Load positions
+                    .FirstOrDefaultAsync(fun s -> s.StageId = stageId)
+
             match stage with
             | null -> return this.Ok "No stage"
             | _ -> return this.Ok(stage)
@@ -77,16 +88,23 @@ type MrpController(context: MRPContext) =
     [<HttpPost("CreatePosition")>]
     member this.CreatePosition([<FromBody>] position: Position) =
         task {
-            if String.IsNullOrWhiteSpace(position.PositionDescr) || String.IsNullOrWhiteSpace(position.PositionCode) then
+            if
+                String.IsNullOrWhiteSpace(position.PositionDescr)
+                || String.IsNullOrWhiteSpace(position.PositionCode)
+            then
                 return this.BadRequest("Position Description or Code cannot be empty") :> IActionResult
             else
                 let! stage = context.Stages.FirstOrDefaultAsync(fun s -> s.StageId = position.StageId)
+
                 if isNull stage then
                     return this.BadRequest("Invalid StageId") :> IActionResult
                 else
                     context.Positions.Add(position) |> ignore
                     let rowsAffected = context.SaveChanges()
-                    return this.Ok(String.Format("Position created successfully with {0} rows affected", rowsAffected)) :> IActionResult
+
+                    return
+                        this.Ok(String.Format("Position created successfully with {0} rows affected", rowsAffected))
+                        :> IActionResult
         }
 
     [<HttpPost("CreateProduct")>]
@@ -97,5 +115,8 @@ type MrpController(context: MRPContext) =
             else
                 context.Products.Add(product) |> ignore
                 let rowsAffected = context.SaveChanges()
-                return this.Ok(String.Format("Product created successfully with {0} rows affected", rowsAffected)) :> IActionResult
+
+                return
+                    this.Ok(String.Format("Product created successfully with {0} rows affected", rowsAffected))
+                    :> IActionResult
         }
