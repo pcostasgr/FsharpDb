@@ -55,7 +55,8 @@ type Mrp = {
 type Product =
     {
         [<Key>]
-        ProductId: int
+        [<DatabaseGenerated(DatabaseGeneratedOption.Identity)>] // Set ProductId as an identity column
+        ProductId: int64
 
         [<Required>]
         [<MaxLength(100)>]
