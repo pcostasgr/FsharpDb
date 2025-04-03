@@ -21,7 +21,7 @@ type MRPContext(options: DbContextOptions<MRPContext>) =
 
     override _.OnModelCreating(modelBuilder: ModelBuilder) =
         // Configure Position entity
-         
+        
         
         
         //printfn "ModelBuilder is null: %b" (isNull modelBuilder)
@@ -50,6 +50,17 @@ type MRPContext(options: DbContextOptions<MRPContext>) =
             entity.Property(fun s -> s.StageCode).IsRequired() |> ignore
             printfn "Pass Position" |> ignore
             entity.HasMany(fun s -> s.ChildStages :> IEnumerable<Stage>).WithOne().HasForeignKey(fun s -> s.ParentStageId :> obj) |> ignore
+        ) |> ignore
+
+        modelBuilder.Entity<Product>(fun entity ->
+            entity.HasKey(fun p -> p.ProductId :> obj) |> ignore // Set ProductId as the primary key
+            entity.Property(fun p -> p.ProductId)
+                .ValueGeneratedOnAdd() // Make ProductId an identity column
+                .HasColumnType("bigint") // Set the column type to bigint
+                .IsRequired() |> ignore // Ensure the primary key is required
+            entity.Property(fun p -> p.ProductName)
+                .IsRequired() // Ensure ProductName is required
+                .HasMaxLength(100) |> ignore // Set the maximum length of ProductName to 100
         ) |> ignore
 
 
