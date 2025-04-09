@@ -49,6 +49,11 @@ type MRPContextModelSnapshot() =
                 |> ignore
 
 
+            b.HasIndex("PositionCode")
+                .IsUnique()
+                |> ignore
+
+
             b.HasIndex("StageId")
                 |> ignore
 
@@ -112,6 +117,11 @@ type MRPContextModelSnapshot() =
 
 
             b.HasIndex("ParentStageId")
+                |> ignore
+
+
+            b.HasIndex("StageCode")
+                .IsUnique()
                 |> ignore
 
             b.ToTable("Stages") |> ignore

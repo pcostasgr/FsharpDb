@@ -34,9 +34,6 @@ type MRPContext(options: DbContextOptions<MRPContext>) =
 
     override _.OnModelCreating(modelBuilder: ModelBuilder) =
         // Configure Position entity
-
-
-
         //printfn "ModelBuilder is null: %b" (isNull modelBuilder)
 
         modelBuilder.RegisterOptionTypes() |> ignore
@@ -46,15 +43,15 @@ type MRPContext(options: DbContextOptions<MRPContext>) =
             entity.Property(fun p -> p.PositionDescr).IsRequired() |> ignore
             entity.Property(fun p -> p.PositionCode).IsRequired() |> ignore
 
+            // Add unique constraint for PositionCode
+            entity.HasIndex(fun p -> p.PositionCode :> obj).IsUnique() |> ignore
+
             entity
                 .HasOne<Stage>()
                 .WithMany(fun s -> s.Positions :> IEnumerable<Position>)
                 .HasForeignKey(fun p -> p.StageId :> obj)
             |> ignore)
         |> ignore
-
-        printfn "Pass Position"
-
 
 
         modelBuilder.Entity<Stage>(fun entity ->
@@ -70,6 +67,10 @@ type MRPContext(options: DbContextOptions<MRPContext>) =
 
             entity.Property(fun s -> s.StageDescr).IsRequired() |> ignore
             entity.Property(fun s -> s.StageCode).IsRequired() |> ignore
+
+            // Add unique constraint for StageCode
+            entity.HasIndex(fun s -> s.StageCode :> obj).IsUnique() |> ignore
+
             printfn "Pass Position" |> ignore
 
             entity

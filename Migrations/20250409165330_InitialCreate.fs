@@ -10,7 +10,7 @@ open Microsoft.EntityFrameworkCore.Storage.ValueConversion
 open MrpService.Data
 
 [<DbContext(typeof<MRPContext>)>]
-[<Migration("20250409062434_InitialCreate")>]
+[<Migration("20250409165330_InitialCreate")>]
 type InitialCreate() =
     inherit Migration()
 
@@ -123,6 +123,13 @@ type InitialCreate() =
         ) |> ignore
 
         migrationBuilder.CreateIndex(
+            name = "IX_Positions_PositionCode"
+            ,table = "Positions"
+            ,column = "PositionCode"
+            ,unique = true
+            ) |> ignore
+
+        migrationBuilder.CreateIndex(
             name = "IX_Positions_StageId"
             ,table = "Positions"
             ,column = "StageId"
@@ -132,6 +139,13 @@ type InitialCreate() =
             name = "IX_Stages_ParentStageId"
             ,table = "Stages"
             ,column = "ParentStageId"
+            ) |> ignore
+
+        migrationBuilder.CreateIndex(
+            name = "IX_Stages_StageCode"
+            ,table = "Stages"
+            ,column = "StageCode"
+            ,unique = true
             ) |> ignore
 
 
@@ -182,6 +196,11 @@ type InitialCreate() =
                 |> ignore
 
             b.HasKey("PosId")
+                |> ignore
+
+
+            b.HasIndex("PositionCode")
+                .IsUnique()
                 |> ignore
 
 
@@ -248,6 +267,11 @@ type InitialCreate() =
 
 
             b.HasIndex("ParentStageId")
+                |> ignore
+
+
+            b.HasIndex("StageCode")
+                .IsUnique()
                 |> ignore
 
             b.ToTable("Stages") |> ignore
