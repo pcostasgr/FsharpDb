@@ -4,7 +4,7 @@
     <OutputType>Exe</OutputType>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="Models/Models.fs" />
+    <Compile Include="Models/*.fs" />
     <Compile Include="Data/DataContext.fs" />
     <Compile Include="Migrations/*.fs" />
     <Compile Include="Controllers/MrpController.fs" />

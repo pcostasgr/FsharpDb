@@ -14,25 +14,35 @@ type MrpController(context: MRPContext) =
     inherit ControllerBase()
 
     [<HttpGet>]
-    member _.Get() =
+    member this.Get() =
         task {
-            let! positions = context.Positions.ToListAsync()
+            try
+                let! positions = context.Positions.ToListAsync()
+                let! stages =
+                    context.Stages
+                        .Include(fun s -> s.Positions)
+                        .Include(fun s -> s.ChildStages)
+                        .ToListAsync()
 
-            let! stages =
-                context.Stages
-                    .Include(fun s -> s.Positions)
-                    .Include(fun s -> s.ChildStages)
-                    .ToListAsync()
+                let mrp =
+                    { Positions = positions
+                      Stages = stages }
 
-            let mrp =
-                { Positions = positions
-                  Stages = stages }
+                let response =
+                    { Success = true
+                      Data = Some mrp
+                      Error = None }
 
-            return ActionResult<Mrp>(mrp)
+                return this.Ok(response) :> IActionResult
+            with
+            | ex ->
+                let response =
+                    { Success = false
+                      Data = None
+                      Error = Some (String.Format("An error occurred: {0}", ex.Message)) }
+
+                return this.StatusCode(500, response) :> IActionResult
         }
-
-    [<HttpGet("GetText")>]
-    member this.GetText() = this.Ok("Hello World")
 
     [<HttpPost("CreateStage")>]
     member this.CreateStage
@@ -42,7 +52,11 @@ type MrpController(context: MRPContext) =
                ParentStageId: int64 option |}) =
         task {
             if String.IsNullOrWhiteSpace(payload.StageName) || String.IsNullOrWhiteSpace(payload.StageCode) then
-                return this.BadRequest("Stage name and code cannot be empty") :> IActionResult
+                let response = 
+                    { Success = false
+                      Data = None
+                      Error = Some "Stage name and code cannot be empty" }
+                return this.BadRequest(response) :> IActionResult
             else
                 let newStage = Stage(payload.StageName, payload.StageCode)
 
@@ -60,9 +74,24 @@ type MrpController(context: MRPContext) =
                 try
                     // Save changes to the database
                     let rowsAffected = context.SaveChanges()
-                    return this.Ok(String.Format("Stage created with {0} rows affected", rowsAffected))
+                    let response = 
+                        { Success = true
+                          Data = Some 
+                              {| 
+                                  StageId = newStage.StageId
+                                  StageDescr = newStage.StageDescr
+                                  StageCode = newStage.StageCode
+                                  RowsAffected = rowsAffected
+                              |}
+                          Error = None }
+                    return this.Ok(response) :> IActionResult
                 with
-                | ex -> return this.StatusCode(500, String.Format("An error occurred: {0}", ex.Message)) :> IActionResult
+                | ex -> 
+                    let response = 
+                        { Success = false
+                          Data = None
+                          Error = Some (String.Format("An error occurred: {0}", ex.Message)) }
+                    return this.StatusCode(500, response) :> IActionResult
         }
 
     [<HttpGet("GetStage/{stageId}")>]
@@ -74,9 +103,25 @@ type MrpController(context: MRPContext) =
                     .Include(fun s -> s.Positions) // Load positions
                     .FirstOrDefaultAsync(fun s -> s.StageId = stageId)
 
-            match stage with
-            | null -> return this.Ok "No stage"
-            | _ -> return this.Ok(stage)
+            if isNull stage then
+                let response = 
+                    { Success = false
+                      Data = None
+                      Error = Some "Stage not found" }
+                return this.NotFound(response) :> IActionResult
+            else
+                let response = 
+                    { Success = true
+                      Data = Some 
+                          {| 
+                              StageId = stage.StageId
+                              StageDescr = stage.StageDescr
+                              StageCode = stage.StageCode
+                              ChildStages = stage.ChildStages
+                              Positions = stage.Positions
+                          |}
+                      Error = None }
+                return this.Ok(response) :> IActionResult
         }
 
     //Usage
@@ -88,37 +133,75 @@ type MrpController(context: MRPContext) =
                 String.IsNullOrWhiteSpace(position.PositionDescr)
                 || String.IsNullOrWhiteSpace(position.PositionCode)
             then
-                return this.BadRequest("Position Description or Code cannot be empty") :> IActionResult
+                let response = 
+                    { Success = false
+                      Data = None
+                      Error = Some "Position Description or Code cannot be empty" }
+                return this.BadRequest(response) :> IActionResult
             else
                 let! stage = context.Stages.FirstOrDefaultAsync(fun s -> s.StageId = position.StageId)
 
                 if isNull stage then
-                    return this.BadRequest("Invalid StageId") :> IActionResult
+                    let response = 
+                        { Success = false
+                          Data = None
+                          Error = Some "Invalid StageId" }
+                    return this.BadRequest(response) :> IActionResult
                 else
                     context.Positions.Add(position) |> ignore
                     try
                         let rowsAffected = context.SaveChanges()
-                        return
-                            this.Ok(String.Format("Position created successfully with {0} rows affected", rowsAffected))
-                            :> IActionResult
+                        let response = 
+                            { Success = true
+                              Data = Some 
+                                  {| 
+                                      PositionId = position.PosId
+                                      PositionDescr = position.PositionDescr
+                                      PositionCode = position.PositionCode
+                                      StageId = position.StageId
+                                      RowsAffected = rowsAffected
+                                  |}
+                              Error = None }
+                        return this.Ok(response) :> IActionResult
                     with
-                    | ex -> return this.StatusCode(500, String.Format("An error occurred: {0}", ex.Message)) :> IActionResult
+                    | ex -> 
+                        let response = 
+                            { Success = false
+                              Data = None
+                              Error = Some (String.Format("An error occurred: {0}", ex.Message)) }
+                        return this.StatusCode(500, response) :> IActionResult
         }
 
     [<HttpPost("CreateProduct")>]
     member this.CreateProduct([<FromBody>] product: Product) =
         task {
             if String.IsNullOrWhiteSpace(product.ProductName) then
-                return this.BadRequest("Product Name cannot be empty") :> IActionResult
+                let response = 
+                    { Success = false
+                      Data = None
+                      Error = Some "Product Name cannot be empty" }
+                return this.BadRequest(response) :> IActionResult
             else
                 context.Products.Add(product) |> ignore
                 try
                     let rowsAffected = context.SaveChanges()
-                    return
-                        this.Ok(String.Format("Product created successfully with {0} rows affected", rowsAffected))
-                        :> IActionResult
+                    let response = 
+                        { Success = true
+                          Data = Some 
+                              {| 
+                                  ProductId = product.ProductId
+                                  ProductName = product.ProductName
+                                  RowsAffected = rowsAffected
+                              |}
+                          Error = None }
+                    return this.Ok(response) :> IActionResult
                 with
-                | ex -> return this.StatusCode(500, String.Format("An error occurred: {0}", ex.Message)) :> IActionResult
+                | ex -> 
+                    let response = 
+                        { Success = false
+                          Data = None
+                          Error = Some (String.Format("An error occurred: {0}", ex.Message)) }
+                    return this.StatusCode(500, response) :> IActionResult
         }
 
     [<HttpDelete("DeleteStage/{stageId}")>]
@@ -127,12 +210,29 @@ type MrpController(context: MRPContext) =
             let! stage = context.Stages.FirstOrDefaultAsync(fun s -> s.StageId = stageId)
 
             if isNull stage then
-                return this.NotFound("Stage not found") :> IActionResult
+                let response = 
+                    { Success = false
+                      Data = None
+                      Error = Some "Stage not found" }
+                return this.NotFound(response) :> IActionResult
             else
                 context.Stages.Remove(stage) |> ignore
                 try
                     let rowsAffected = context.SaveChanges()
-                    return this.Ok(String.Format("Stage deleted with {0} rows affected", rowsAffected))
+                    let response = 
+                        { Success = true
+                          Data = Some 
+                              {| 
+                                  StageId = stage.StageId
+                                  RowsAffected = rowsAffected
+                              |}
+                          Error = None }
+                    return this.Ok(response) :> IActionResult
                 with
-                | ex -> return this.StatusCode(500, String.Format("An error occurred: {0}", ex.Message)) :> IActionResult
+                | ex -> 
+                    let response = 
+                        { Success = false
+                          Data = None
+                          Error = Some (String.Format("An error occurred: {0}", ex.Message)) }
+                    return this.StatusCode(500, response) :> IActionResult
         }
