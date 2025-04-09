@@ -76,6 +76,7 @@ type MRPContext(options: DbContextOptions<MRPContext>) =
                 .HasMany(fun s -> s.ChildStages :> IEnumerable<Stage>)
                 .WithOne()
                 .HasForeignKey(fun s -> s.ParentStageId :> obj)
+                .OnDelete(DeleteBehavior.Restrict) // Prevent cascading deletes to avoid circular reference issues
             |> ignore)
         |> ignore
 

@@ -56,6 +56,30 @@ type MRPContextModelSnapshot() =
 
         )) |> ignore
 
+        modelBuilder.Entity("MrpService.Models.Product", (fun b ->
+
+            b.Property<Int64>("ProductId")
+                .IsRequired(true)
+                .ValueGeneratedOnAdd()
+                .HasColumnType("bigint")
+                |> ignore
+
+            SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<Int64>("ProductId"), 1L, 1) |> ignore
+
+            b.Property<string>("ProductName")
+                .IsRequired(true)
+                .HasMaxLength(100)
+                .HasColumnType("nvarchar(100)")
+                |> ignore
+
+            b.HasKey("ProductId")
+                |> ignore
+
+
+            b.ToTable("Products") |> ignore
+
+        )) |> ignore
+
         modelBuilder.Entity("MrpService.Models.Stage", (fun b ->
 
             b.Property<Int64>("StageId")
@@ -106,6 +130,7 @@ type MRPContextModelSnapshot() =
             b.HasOne("MrpService.Models.Stage", null)
                 .WithMany("ChildStages")
                 .HasForeignKey("ParentStageId")
+                .OnDelete(DeleteBehavior.Restrict)
                 |> ignore
 
         )) |> ignore

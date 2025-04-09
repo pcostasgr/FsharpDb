@@ -10,11 +10,34 @@ open Microsoft.EntityFrameworkCore.Storage.ValueConversion
 open MrpService.Data
 
 [<DbContext(typeof<MRPContext>)>]
-[<Migration("20250330174238_InitialCreate")>]
+[<Migration("20250409062434_InitialCreate")>]
 type InitialCreate() =
     inherit Migration()
 
     override this.Up(migrationBuilder:MigrationBuilder) =
+        migrationBuilder.CreateTable(
+            name = "Products"
+            ,columns = (fun table -> 
+            {|
+                ProductId =
+                    table.Column<Int64>(
+                        nullable = false
+                        ,``type`` = "bigint"
+                    ).Annotation("SqlServer:Identity", "1, 1")
+                ProductName =
+                    table.Column<string>(
+                        nullable = false
+                        ,``type`` = "nvarchar(100)"
+                        ,maxLength = Nullable(100)
+                    )
+            |})
+            , constraints =
+                (fun table -> 
+                    table.PrimaryKey("PK_Products", (fun x -> (x.ProductId) :> obj)
+                    ) |> ignore
+                )
+        ) |> ignore
+
         migrationBuilder.CreateTable(
             name = "Stages"
             ,columns = (fun table -> 
@@ -51,6 +74,7 @@ type InitialCreate() =
                         ,column = (fun x -> (x.ParentStageId) :> obj)
                         ,principalTable = "Stages"
                         ,principalColumn = "StageId"
+                        ,onDelete = ReferentialAction.Restrict
                         ) |> ignore
 
                 )
@@ -117,6 +141,10 @@ type InitialCreate() =
             ) |> ignore
 
         migrationBuilder.DropTable(
+            name = "Products"
+            ) |> ignore
+
+        migrationBuilder.DropTable(
             name = "Stages"
             ) |> ignore
 
@@ -161,6 +189,30 @@ type InitialCreate() =
                 |> ignore
 
             b.ToTable("Positions") |> ignore
+
+        )) |> ignore
+
+        modelBuilder.Entity("MrpService.Models.Product", (fun b ->
+
+            b.Property<Int64>("ProductId")
+                .IsRequired(true)
+                .ValueGeneratedOnAdd()
+                .HasColumnType("bigint")
+                |> ignore
+
+            SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<Int64>("ProductId"), 1L, 1) |> ignore
+
+            b.Property<string>("ProductName")
+                .IsRequired(true)
+                .HasMaxLength(100)
+                .HasColumnType("nvarchar(100)")
+                |> ignore
+
+            b.HasKey("ProductId")
+                |> ignore
+
+
+            b.ToTable("Products") |> ignore
 
         )) |> ignore
 
@@ -214,6 +266,7 @@ type InitialCreate() =
             b.HasOne("MrpService.Models.Stage", null)
                 .WithMany("ChildStages")
                 .HasForeignKey("ParentStageId")
+                .OnDelete(DeleteBehavior.Restrict)
                 |> ignore
 
         )) |> ignore
