@@ -7,14 +7,13 @@ open MrpService.Models
 open System.Collections.Generic
 open System
 
-
-[<Route("api/[controller]")>]
+[<Route("api/stages")>]
 [<ApiController>]
-type MrpController(context: MRPContext) =
+type StagesController(context: MRPContext) =
     inherit ControllerBase()
 
     [<HttpGet>]
-    member this.Get() =
+    member this.GetStages() =
         task {
             try
                 let! positions = context.Positions.ToListAsync()
@@ -44,7 +43,37 @@ type MrpController(context: MRPContext) =
                 return this.StatusCode(500, response) :> IActionResult
         }
 
-    [<HttpPost("CreateStage")>]
+    [<HttpGet("{stageId}")>]
+    member this.GetStageById(stageId: int64) =
+        task {
+            let! stage =
+                context.Stages
+                    .Include(fun s -> s.ChildStages) // Load child stages
+                    .Include(fun s -> s.Positions) // Load positions
+                    .FirstOrDefaultAsync(fun s -> s.StageId = stageId)
+
+            if isNull stage then
+                let response = 
+                    { Success = false
+                      Data = None
+                      Error = Some "Stage not found" }
+                return this.NotFound(response) :> IActionResult
+            else
+                let response = 
+                    { Success = true
+                      Data = Some 
+                          {| 
+                              StageId = stage.StageId
+                              StageDescr = stage.StageDescr
+                              StageCode = stage.StageCode
+                              ChildStages = stage.ChildStages
+                              Positions = stage.Positions
+                          |}
+                      Error = None }
+                return this.Ok(response) :> IActionResult
+        }
+
+    [<HttpPost>]
     member this.CreateStage
         ([<FromBody>] payload: 
             {| StageName: string
@@ -94,14 +123,10 @@ type MrpController(context: MRPContext) =
                     return this.StatusCode(500, response) :> IActionResult
         }
 
-    [<HttpGet("GetStage/{stageId}")>]
-    member this.GetStageById(stageId: int64) =
+    [<HttpDelete("{stageId}")>]
+    member this.DeleteStage(stageId: int64) =
         task {
-            let! stage =
-                context.Stages
-                    .Include(fun s -> s.ChildStages) // Load child stages
-                    .Include(fun s -> s.Positions) // Load positions
-                    .FirstOrDefaultAsync(fun s -> s.StageId = stageId)
+            let! stage = context.Stages.FirstOrDefaultAsync(fun s -> s.StageId = stageId)
 
             if isNull stage then
                 let response = 
@@ -110,23 +135,33 @@ type MrpController(context: MRPContext) =
                       Error = Some "Stage not found" }
                 return this.NotFound(response) :> IActionResult
             else
-                let response = 
-                    { Success = true
-                      Data = Some 
-                          {| 
-                              StageId = stage.StageId
-                              StageDescr = stage.StageDescr
-                              StageCode = stage.StageCode
-                              ChildStages = stage.ChildStages
-                              Positions = stage.Positions
-                          |}
-                      Error = None }
-                return this.Ok(response) :> IActionResult
+                context.Stages.Remove(stage) |> ignore
+                try
+                    let rowsAffected = context.SaveChanges()
+                    let response = 
+                        { Success = true
+                          Data = Some 
+                              {| 
+                                  StageId = stage.StageId
+                                  RowsAffected = rowsAffected
+                              |}
+                          Error = None }
+                    return this.Ok(response) :> IActionResult
+                with
+                | ex -> 
+                    let response = 
+                        { Success = false
+                          Data = None
+                          Error = Some (String.Format("An error occurred: {0}", ex.Message)) }
+                    return this.StatusCode(500, response) :> IActionResult
         }
 
-    //Usage
-    (*λ curl -X POST http://localhost:5290/api/Mrp/CreatePosition -H "Content-Type: application/json" -d "{\"positionCode\": \"P001\", \"positionDescr\": \"Sample Position\", \"stageId\": 1}"*)
-    [<HttpPost("CreatePosition")>]
+[<Route("api/positions")>]
+[<ApiController>]
+type PositionsController(context: MRPContext) =
+    inherit ControllerBase()
+
+    [<HttpPost>]
     member this.CreatePosition([<FromBody>] position: Position) =
         task {
             if
@@ -172,7 +207,12 @@ type MrpController(context: MRPContext) =
                         return this.StatusCode(500, response) :> IActionResult
         }
 
-    [<HttpPost("CreateProduct")>]
+[<Route("api/products")>]
+[<ApiController>]
+type ProductsController(context: MRPContext) =
+    inherit ControllerBase()
+
+    [<HttpPost>]
     member this.CreateProduct([<FromBody>] product: Product) =
         task {
             if String.IsNullOrWhiteSpace(product.ProductName) then
@@ -191,39 +231,6 @@ type MrpController(context: MRPContext) =
                               {| 
                                   ProductId = product.ProductId
                                   ProductName = product.ProductName
-                                  RowsAffected = rowsAffected
-                              |}
-                          Error = None }
-                    return this.Ok(response) :> IActionResult
-                with
-                | ex -> 
-                    let response = 
-                        { Success = false
-                          Data = None
-                          Error = Some (String.Format("An error occurred: {0}", ex.Message)) }
-                    return this.StatusCode(500, response) :> IActionResult
-        }
-
-    [<HttpDelete("DeleteStage/{stageId}")>]
-    member this.DeleteStage(stageId: int64) =
-        task {
-            let! stage = context.Stages.FirstOrDefaultAsync(fun s -> s.StageId = stageId)
-
-            if isNull stage then
-                let response = 
-                    { Success = false
-                      Data = None
-                      Error = Some "Stage not found" }
-                return this.NotFound(response) :> IActionResult
-            else
-                context.Stages.Remove(stage) |> ignore
-                try
-                    let rowsAffected = context.SaveChanges()
-                    let response = 
-                        { Success = true
-                          Data = Some 
-                              {| 
-                                  StageId = stage.StageId
                                   RowsAffected = rowsAffected
                               |}
                           Error = None }
